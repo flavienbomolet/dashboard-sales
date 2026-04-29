@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Commerciaux</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;background:#f5f5f3;color:#1a1a1a;min-height:100vh}
+
+  /* ── LOGIN ── */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+  .login-card{background:#fff;border-radius:12px;border:1px solid #e5e5e3;padding:2rem;width:100%;max-width:380px}
+  .login-card h1{font-size:20px;font-weight:600;margin-bottom:.25rem}
+  .login-card p{font-size:13px;color:#888;margin-bottom:1.5rem}
+  .login-field{margin-bottom:1rem}
+  .login-field label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+  .login-field input{width:100%;height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a}
+  .login-field input:focus{outline:none;border-color:#185FA5}
+  .login-btn{width:100%;height:38px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;margin-top:.5rem}
+  .login-btn:hover{background:#0C447C}
+  .login-error{font-size:12px;color:#A32D2D;margin-top:.75rem;padding:.5rem .75rem;background:#FCEBEB;border-radius:6px;display:none}
+
+  /* ── APP ── */
+  .app{display:none;min-height:100vh}
+  .topnav{background:#fff;border-bottom:1px solid #e5e5e3;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50}
+  .topnav h1{font-size:15px;font-weight:600}
+  .topnav-right{display:flex;align-items:center;gap:10px}
+  .user-badge{font-size:12px;color:#666;background:#f5f5f3;padding:4px 10px;border-radius:20px}
+  .role-badge{font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px}
+  .role-admin{background:#E6F1FB;color:#185FA5}
+  .role-commercial{background:#EAF3DE;color:#3B6D11}
+  .logout-btn{font-size:12px;color:#888;background:none;border:1px solid #e5e5e3;border-radius:6px;padding:4px 10px;cursor:pointer}
+  .logout-btn:hover{color:#A32D2D;border-color:#A32D2D}
+
+  .main{max-width:900px;margin:0 auto;padding:1.5rem 1rem}
+
+  /* Tabs */
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+  .tab{padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;cursor:pointer;font-size:13px;white-space:nowrap}
+  .tab.active{background:#185FA5;color:#fff;border-color:#185FA5}
+  .tab:hover:not(.active){background:#f5f5f3}
+  .view{display:none}.view.active{display:block}
+
+  /* Période accordéon */
+  .period-accordion{margin-bottom:1rem}
+  .period-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 12px;border-radius:8px;border:1px solid #e5e5e3;background:#f5f5f3;width:100%;text-align:left;font-size:13px}
+  .period-toggle:hover{border-color:#ccc}
+  .period-toggle .ico{font-size:10px;margin-left:auto;transition:transform .2s}
+  .period-toggle.open .ico{transform:rotate(180deg)}
+  .period-toggle.open{border-radius:8px 8px 0 0}
+  .period-body{display:none;padding:.75rem 1rem;border:1px solid #e5e5e3;border-top:none;border-radius:0 0 8px 8px;background:#fff}
+  .period-body.open{display:block}
+  .period-opts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.5rem}
+  .popt{padding:4px 12px;border-radius:8px;border:1px solid #e5e5e3;background:#f5f5f3;color:#666;cursor:pointer;font-size:12px}
+  .popt.active{background:#185FA5;color:#fff;border-color:#185FA5}
+  .popt:hover:not(.active){border-color:#ccc}
+  .period-custom{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:.5rem}
+  .period-custom label{font-size:12px;color:#888}
+  .period-custom input{height:30px;padding:0 8px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#1a1a1a;width:120px}
+  .period-apply{height:30px;padding:0 12px;font-size:12px;border-radius:6px;border:none;background:#185FA5;color:#fff;cursor:pointer}
+
+  /* Cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem}
+  .card{background:#fff;border:1px solid #e5e5e3;border-radius:10px;padding:.75rem 1rem}
+  .card .lbl{font-size:11px;color:#888;margin-bottom:4px}
+  .card .val{font-size:20px;font-weight:600;color:#1a1a1a}
+  .card .sub{font-size:11px;margin-top:3px;color:#888}
+  .up{color:#3B6D11}.down{color:#A32D2D}
+
+  /* Sections */
+  .section{background:#fff;border:1px solid #e5e5e3;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}
+  .section h2{font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.875rem}
+  .chart-wrap{position:relative;width:100%}
+
+  /* Table */
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:right;padding:6px 8px;color:#888;font-weight:500;border-bottom:1px solid #f0f0ee;white-space:nowrap;font-size:11px}
+  th:first-child,th:nth-child(2){text-align:left}
+  td{padding:7px 8px;border-bottom:1px solid #f0f0ee;color:#1a1a1a;text-align:right;white-space:nowrap}
+  td:first-child,td:nth-child(2){text-align:left}
+  tr:last-child td{border-bottom:none}
+  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:6px;font-weight:500}
+  .b-green{background:#EAF3DE;color:#3B6D11}.b-red{background:#FCEBEB;color:#A32D2D}
+
+  /* Forms */
+  .fg label{font-size:11px;color:#666;display:block;margin-bottom:3px}
+  .fg input,.fg select{width:100%;height:34px;padding:0 10px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a}
+  .fg input:focus,.fg select:focus{outline:none;border-color:#185FA5}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end}
+  .btn{height:34px;padding:0 14px;font-size:13px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;cursor:pointer}
+  .btn:hover{background:#f5f5f3}
+  .btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
+  .btn-primary:hover{background:#0C447C}
+  .btn-sm{height:26px;padding:0 8px;font-size:11px}
+  .btn-danger{border:none;background:none;color:#ccc;padding:0 6px;cursor:pointer}
+  .btn-danger:hover{color:#A32D2D}
+
+  /* Leaderboard */
+  .leaderboard{display:flex;flex-direction:column;gap:8px}
+  .lb-row{display:flex;align-items:center;gap:12px;padding:.75rem 1rem;border-radius:8px;border:1px solid #e5e5e3;background:#fff}
+  .lb-row.rank-1{border-color:#EF9F27;background:#FAEEDA18}
+  .lb-row.rank-2{border-color:#B4B2A9}
+  .lb-row.rank-3{border-color:#5DCAA5;background:#E1F5EE18}
+  .lb-rank{font-size:18px;width:28px;text-align:center;flex-shrink:0}
+  .lb-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+  .lb-info{flex:1;min-width:0}
+  .lb-name{font-size:14px;font-weight:500}
+  .lb-sub{font-size:11px;color:#888;margin-top:2px}
+  .lb-right{text-align:right}
+  .lb-score{font-size:18px;font-weight:600}
+  .lb-score-lbl{font-size:10px;color:#888}
+  .prog{background:#f0f0ee;border-radius:4px;height:4px;overflow:hidden;margin-top:4px}
+  .prog-fill{height:100%;border-radius:4px}
+
+  /* Sales tabs */
+  .sales-tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+  .subtabs{display:flex;gap:4px;margin-bottom:1rem}
+  .subtab{padding:4px 12px;border-radius:8px;border:1px solid #e5e5e3;background:transparent;color:#888;cursor:pointer;font-size:12px}
+  .subtab.active{background:#f5f5f3;color:#1a1a1a;border-color:#ccc}
+
+  /* Settings */
+  .settings-grid{display:flex;flex-direction:column;gap:8px}
+  .setting-row{display:flex;align-items:center;gap:8px}
+  .setting-row input{flex:1;height:32px;padding:0 10px;font-size:13px;border:1px solid #ddd;border-radius:8px}
+  .color-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+  /* Toast */
+  .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a1a1a;color:#fff;font-size:13px;padding:.625rem 1rem;border-radius:8px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+  .toast.show{opacity:1}
+
+  /* Loading */
+  .loading{text-align:center;padding:3rem;color:#888;font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div class="login-wrap" id="login-screen">
+  <div class="login-card">
+    <h1>Dashboard Commerciaux</h1>
+    <p>Connectez-vous pour accéder à votre espace</p>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="vous@entreprise.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Mot de passe</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Se connecter</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════ APP ══════════════ -->
+<div class="app" id="app">
+  <nav class="topnav">
+    <h1>Dashboard Commerciaux</h1>
+    <div class="topnav-right">
+      <span class="user-badge" id="user-email-badge"></span>
+      <span class="role-badge" id="role-badge"></span>
+      <button class="logout-btn" onclick="doLogout()">Déconnexion</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <!-- Navigation -->
+    <div class="tabs" id="main-tabs">
+      <!-- Peuplé selon le rôle -->
+    </div>
+
+    <!-- Accordéon période (masqué pour commerciaux sur certaines vues) -->
+    <div class="period-accordion" id="period-accordion" style="display:none">
+      <button class="period-toggle" id="period-toggle" onclick="togglePeriod()">
+        <span style="font-size:12px;color:#888">Période</span>
+        <span style="width:1px;height:14px;background:#e5e5e3;display:inline-block"></span>
+        <span style="font-weight:500" id="period-toggle-label">Cette semaine</span>
+        <span style="font-size:11px;color:#888" id="period-toggle-range"></span>
+        <span class="ico">▾</span>
+      </button>
+      <div class="period-body" id="period-body">
+        <div class="period-opts">
+          <button class="popt active" onclick="setPeriod('week')">Cette semaine</button>
+          <button class="popt" onclick="setPeriod('month')">Ce mois</button>
+          <button class="popt" onclick="setPeriod('quarter')">Ce trimestre</button>
+          <button class="popt" onclick="setPeriod('year')">Cette année</button>
+          <button class="popt" onclick="setPeriod('all')">Tout</button>
+          <button class="popt" onclick="setPeriod('custom')">Personnalisé</button>
+        </div>
+        <div class="period-custom" id="period-custom" style="display:none">
+          <label>Du</label><input type="date" id="period-from">
+          <label>au</label><input type="date" id="period-to">
+          <button class="period-apply" onclick="applyCustom()">Appliquer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VUE ÉQUIPE (admin only) ── -->
+    <div class="view" id="view-equipe">
+      <div class="cards" id="team-cards"></div>
+      <div class="section"><h2>🏆 Leaderboard</h2><div class="leaderboard" id="leaderboard"></div></div>
+      <div class="section"><h2>Funnel de conversion</h2><div class="chart-wrap" style="height:200px"><canvas id="chart-funnel"></canvas></div></div>
+    </div>
+
+    <!-- ── VUE REVENUS (admin only) ── -->
+    <div class="view" id="view-revenus">
+      <div class="cards" id="rev-cards"></div>
+      <div class="section"><h2>CA & marge par commercial</h2><div class="chart-wrap" style="height:220px"><canvas id="chart-rev-compare"></canvas></div></div>
+      <div class="section"><h2>Contribution au CA</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:center">
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-rev-pie"></canvas></div>
+          <div id="rev-legend"></div>
+        </div>
+      </div>
+      <div class="section"><h2>Signatures sur la période</h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Commercial</th><th>Client</th><th>CA HT</th><th>Taux marque</th><th>Marge €</th></tr></thead><tbody id="rev-table"></tbody></table></div></div>
+    </div>
+
+    <!-- ── VUE INDIVIDUELLE (admin + commercial) ── -->
+    <div class="view" id="view-individuel">
+      <div class="sales-tabs" id="indiv-tabs"></div>
+      <div class="subtabs">
+        <button class="subtab active" onclick="switchSubtab('activite')">Activité</button>
+        <button class="subtab" onclick="switchSubtab('signindiv')">Signatures</button>
+      </div>
+      <div id="sub-activite">
+        <div class="cards" id="indiv-cards"></div>
+        <div class="section"><h2>Activité sur la période</h2><div class="chart-wrap" style="height:220px"><canvas id="chart-indiv"></canvas></div></div>
+        <div class="section"><h2>Détail journalier</h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>T.Call</th><th>Call</th><th>Email</th><th>RDV</th><th>Lapin</th><th>Sign.</th><th>Score</th><th>Conv.→RDV</th></tr></thead><tbody id="indiv-table"></tbody></table></div></div>
+      </div>
+      <div id="sub-signindiv" style="display:none">
+        <div class="cards" id="indiv-rev-cards"></div>
+        <div class="section"><h2>Signatures de <span id="indiv-sign-name"></span></h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>CA HT</th><th>Taux marque</th><th>Marge €</th><th></th></tr></thead><tbody id="indiv-sign-table"></tbody></table></div></div>
+      </div>
+    </div>
+
+    <!-- ── SAISIE ACTIVITÉ (commercial + admin) ── -->
+    <div class="view" id="view-saisie">
+      <div class="section"><h2>Nouvelle entrée activité</h2>
+        <div class="form-grid">
+          <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
+          <div class="fg" id="inp-respo-wrap"><label>Commercial</label><select id="inp-respo"></select></div>
+          <div class="fg"><label>Tent. Calls</label><input type="number" id="inp-tc" min="0" placeholder="0"></div>
+          <div class="fg"><label>Calls obtenus</label><input type="number" id="inp-call" min="0" placeholder="0"></div>
+          <div class="fg"><label>Emails first</label><input type="number" id="inp-email" min="0" placeholder="0"></div>
+          <div class="fg"><label>RDV obtenus</label><input type="number" id="inp-rdv" min="0" placeholder="0"></div>
+          <div class="fg"><label>Lapins</label><input type="number" id="inp-lapin" min="0" placeholder="0"></div>
+          <div class="fg"><label>Signatures (nb)</label><input type="number" id="inp-sign" min="0" placeholder="0"></div>
+          <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addEntry()" style="width:100%">Ajouter ↵</button></div>
+        </div>
+      </div>
+      <div class="section"><h2>Mes saisies récentes</h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Respo</th><th>T.Call</th><th>Call</th><th>Email</th><th>RDV</th><th>Lapin</th><th>Sign.</th><th>Score</th><th></th></tr></thead><tbody id="hist-body"></tbody></table></div></div>
+    </div>
+
+    <!-- ── SAISIE SIGNATURE (commercial + admin) ── -->
+    <div class="view" id="view-signatures">
+      <div class="section"><h2>Enregistrer une signature</h2>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+          <div class="fg"><label>Date</label><input type="date" id="sig-date"></div>
+          <div class="fg" id="sig-respo-wrap"><label>Commercial</label><select id="sig-respo"></select></div>
+          <div class="fg"><label>Nom client</label><input type="text" id="sig-client" placeholder="Entreprise..."></div>
+          <div class="fg"><label>CA HT (€)</label><input type="number" id="sig-ca" min="0" placeholder="0"></div>
+          <div class="fg"><label>Taux de marque (%)</label><input type="number" id="sig-taux" min="0" max="100" step="0.1" placeholder="ex: 35"></div>
+          <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addSignature()" style="width:100%">Enregistrer ↵</button></div>
+        </div>
+        <div style="margin-top:.75rem;padding:.75rem 1rem;background:#f5f5f3;border-radius:8px;font-size:12px;color:#888">Marge calculée : <strong id="sig-preview">—</strong></div>
+      </div>
+      <div class="section"><h2>Mes signatures récentes</h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Commercial</th><th>Client</th><th>CA HT</th><th>Taux marque</th><th>Marge €</th><th></th></tr></thead><tbody id="sig-hist-body"></tbody></table></div></div>
+    </div>
+
+    <!-- ── PARAMÈTRES (admin only) ── -->
+    <div class="view" id="view-parametres">
+      <div class="section"><h2>Commerciaux (noms affichés)</h2>
+        <div class="settings-grid" id="sales-settings"></div>
+        <button class="btn" style="margin-top:10px" onclick="addSalesSetting()">+ Ajouter</button>
+      </div>
+      <div class="section"><h2>Formule de scoring</h2>
+        <div style="background:#f5f5f3;border-radius:8px;padding:.875rem 1rem;font-size:13px">
+          Score = ( RDV × <input type="number" id="coef-rdv" step="0.05" style="width:56px;height:26px;padding:0 6px;font-size:13px;border:1px solid #ddd;border-radius:6px"> ) + ( Emails × <input type="number" id="coef-email" step="0.05" style="width:56px;height:26px;padding:0 6px;font-size:13px;border:1px solid #ddd;border-radius:6px"> )
+        </div>
+        <button class="btn btn-primary" style="margin-top:.75rem" onclick="saveSettings()">Enregistrer</button>
+      </div>
+      <div class="section"><h2>Objectifs hebdomadaires (base)</h2>
+        <p style="font-size:12px;color:#888;margin-bottom:.75rem">Définis par semaine — ajustés automatiquement à la période (arrondi au supérieur).</p>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+          <div class="fg"><label>Tent. Calls</label><input type="number" id="goal-tc"></div>
+          <div class="fg"><label>Calls</label><input type="number" id="goal-call"></div>
+          <div class="fg"><label>Emails</label><input type="number" id="goal-email"></div>
+          <div class="fg"><label>RDV</label><input type="number" id="goal-rdv"></div>
+          <div class="fg"><label>Signatures</label><input type="number" id="goal-sign"></div>
+          <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="saveSettings()" style="width:100%">Enregistrer</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  ⚙️  CONFIGURATION — À MODIFIER
+// ══════════════════════════════════════════════
+const SUPABASE_URL = 'https://qgboeoxcsdnrgdcwjwej.supabase.co';       // ex: https://xxxx.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYm9lb3hjc2RucmdkY3dqd2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0ODg4NDAsImV4cCI6MjA5MzA2NDg0MH0.NME75fK89HZDCvMJbeqqpfsUehSWsJLBleh_0toMHS4'; // clé publique anon
+
+// Email de l'administrateur (vous)
+const ADMIN_EMAIL = 'flavien@bomolet.com';
+
+// ══════════════════════════════════════════════
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let isAdmin = false;
+let userDisplayName = '';
+
+// State
+let entries = [], sigEntries = [], salesList = [], goals = {}, coefs = {};
+let periodMode = 'week', periodFrom = null, periodTo = null, periodOpen = false;
+let currentSales = '', currentSubtab = 'activite';
+let cFunnel = null, cRevCompare = null, cRevPie = null, cIndiv = null;
+
+const PALETTE = ['#185FA5','#1D9E75','#BA7517','#993556','#534AB7','#993C1D'];
+const PERIOD_NAMES = {week:'Cette semaine',month:'Ce mois',quarter:'Ce trimestre',year:'Cette année',all:'Tout',custom:'Personnalisé'};
+
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    errEl.textContent = 'Email ou mot de passe incorrect.';
+    errEl.style.display = 'block';
+    return;
+  }
+  await initApp(data.user);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function initApp(user) {
+  currentUser = user;
+  isAdmin = user.email === ADMIN_EMAIL;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-email-badge').textContent = user.email;
+  document.getElementById('role-badge').textContent = isAdmin ? 'Admin' : 'Commercial';
+  document.getElementById('role-badge').className = 'role-badge ' + (isAdmin ? 'role-admin' : 'role-commercial');
+  buildNav();
+  await loadSettings();
+  await loadData();
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inp-date').value = today;
+  document.getElementById('sig-date').value = today;
+  setPeriod('week');
+  switchTab(isAdmin ? 'equipe' : 'saisie');
+}
+
+// Vérifier session existante au chargement
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) initApp(session.user);
+});
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+function buildNav() {
+  const tabsEl = document.getElementById('main-tabs');
+  const adminTabs = [
+    {id:'equipe', label:'Équipe'},
+    {id:'revenus', label:'Revenus'},
+    {id:'individuel', label:'Individuel'},
+    {id:'saisie', label:'+ Activité'},
+    {id:'signatures', label:'+ Signature'},
+    {id:'parametres', label:'⚙'},
+  ];
+  const commercialTabs = [
+    {id:'saisie', label:'+ Activité'},
+    {id:'signatures', label:'+ Signature'},
+    {id:'individuel', label:'Mon suivi'},
+  ];
+  const tabs = isAdmin ? adminTabs : commercialTabs;
+  tabsEl.innerHTML = tabs.map(t =>
+    `<button class="tab" onclick="switchTab('${t.id}')">${t.label}</button>`
+  ).join('');
+}
+
+const ANALYSE_TABS = ['equipe','revenus','individuel'];
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(b => {
+    b.className = 'tab' + (b.textContent.trim() === getTabLabel(t) ? ' active' : '');
+  });
+  ['equipe','revenus','individuel','saisie','signatures','parametres'].forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el) el.style.display = v === t ? 'block' : 'none';
+  });
+  const showPeriod = ANALYSE_TABS.includes(t);
+  document.getElementById('period-accordion').style.display = showPeriod ? 'block' : 'none';
+  if (!showPeriod) closePeriod();
+  // Si commercial sur "individuel", forcer sa propre vue
+  if (!isAdmin && t === 'individuel') {
+    const myName = userDisplayName;
+    if (myName) { currentSales = myName; renderIndivTabs(); }
+  }
+}
+function getTabLabel(id) {
+  const m = {equipe:'Équipe',revenus:'Revenus',individuel:isAdmin?'Individuel':'Mon suivi',saisie:'+ Activité',signatures:'+ Signature',parametres:'⚙'};
+  return m[id] || '';
+}
+function switchSubtab(t) {
+  document.querySelectorAll('.subtab').forEach(b => {
+    b.className = 'subtab' + (b.textContent === (t==='activite'?'Activité':'Signatures') ? ' active' : '');
+  });
+  document.getElementById('sub-activite').style.display = t==='activite' ? 'block' : 'none';
+  document.getElementById('sub-signindiv').style.display = t==='signindiv' ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════
+//  PÉRIODE
+// ══════════════════════════════════════════════
+function pad(n){return String(n).padStart(2,'0')}
+function fmtD(d){return d.toISOString().split('T')[0]}
+function getPeriodRange(mode) {
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth(),d=now.getDate();
+  const dow=(now.getDay()+6)%7;
+  if(mode==='week'){const f=new Date(y,m,d-dow);const t=new Date(y,m,d-dow+6);return{from:fmtD(f),to:fmtD(t)}}
+  if(mode==='month')return{from:`${y}-${pad(m+1)}-01`,to:`${y}-${pad(m+1)}-${pad(new Date(y,m+1,0).getDate())}`}
+  if(mode==='quarter'){const q=Math.floor(m/3);return{from:`${y}-${pad(q*3+1)}-01`,to:`${y}-${pad(q*3+3)}-${pad(new Date(y,q*3+3,0).getDate())}`}}
+  if(mode==='year')return{from:`${y}-01-01`,to:`${y}-12-31`}
+  if(mode==='all')return{from:'2000-01-01',to:'2099-12-31'}
+  if(mode==='custom'&&periodFrom&&periodTo)return{from:periodFrom,to:periodTo}
+  return{from:'2000-01-01',to:'2099-12-31'}
+}
+function inRange(date){const r=getPeriodRange(periodMode);return date>=r.from&&date<=r.to}
+function weeksInRange(){const r=getPeriodRange(periodMode);return Math.ceil((new Date(r.to)-new Date(r.from))/86400000/7+1/7)}
+function goalFor(k){return Math.ceil((goals[k]||0)*weeksInRange())}
+function periodRangeText(){
+  const r=getPeriodRange(periodMode);
+  if(periodMode==='all')return'';
+  const fd=s=>{const[y,m,d]=s.split('-');return`${d}/${m}/${y}`};
+  return`${fd(r.from)} → ${fd(r.to)}`;
+}
+function updateToggleLabel(){
+  document.getElementById('period-toggle-label').textContent = PERIOD_NAMES[periodMode]||'';
+  document.getElementById('period-toggle-range').textContent = periodRangeText();
+}
+function togglePeriod(){
+  periodOpen=!periodOpen;
+  document.getElementById('period-body').classList.toggle('open',periodOpen);
+  const tog=document.getElementById('period-toggle');
+  tog.classList.toggle('open',periodOpen);
+}
+function closePeriod(){
+  periodOpen=false;
+  document.getElementById('period-body').classList.remove('open');
+  document.getElementById('period-toggle').classList.remove('open');
+}
+function setPeriod(mode){
+  periodMode=mode;
+  document.querySelectorAll('.popt').forEach(b=>{b.className='popt'+(b.textContent===PERIOD_NAMES[mode]?' active':'')});
+  document.getElementById('period-custom').style.display=mode==='custom'?'flex':'none';
+  if(mode!=='custom'){updateToggleLabel();closePeriod();render();}
+}
+function applyCustom(){
+  periodFrom=document.getElementById('period-from').value;
+  periodTo=document.getElementById('period-to').value;
+  if(!periodFrom||!periodTo){alert('Choisissez les deux dates');return}
+  updateToggleLabel();closePeriod();render();
+}
+
+// ══════════════════════════════════════════════
+//  SUPABASE — CHARGEMENT DONNÉES
+// ══════════════════════════════════════════════
+async function loadSettings() {
+  // Charger settings depuis Supabase (table: settings)
+  const { data } = await sb.from('settings').select('*');
+  if (data) {
+    data.forEach(row => {
+      if (row.key === 'goals') goals = row.value;
+      if (row.key === 'coefs') coefs = row.value;
+      if (row.key === 'salesList') salesList = row.value;
+    });
+  }
+  if (!goals.call) goals = {tc:100,call:50,email:20,rdv:12,sign:20};
+  if (!coefs.rdv) coefs = {rdv:1.25,email:0.25};
+  if (!salesList.length) salesList = [{name:'Commercial 1'},{name:'Commercial 2'}];
+
+  // Trouver le nom d'affichage du commercial connecté
+  if (!isAdmin) {
+    const emailName = currentUser.email.split('@')[0];
+    const match = salesList.find(s => s.email === currentUser.email);
+    userDisplayName = match ? match.name : emailName;
+    currentSales = userDisplayName;
+    // Forcer le champ respo sur ses propres données
+    const sel = document.getElementById('inp-respo');
+    const sel2 = document.getElementById('sig-respo');
+    if (sel) { sel.innerHTML = `<option value="${userDisplayName}">${userDisplayName}</option>`; document.getElementById('inp-respo-wrap').style.display='none'; }
+    if (sel2) { sel2.innerHTML = `<option value="${userDisplayName}">${userDisplayName}</option>`; document.getElementById('sig-respo-wrap').style.display='none'; }
+  } else {
+    refreshSelects();
+  }
+  renderGoalInputs();
+  renderCoefInputs();
+  renderSettings();
+}
+
+async function loadData() {
+  // Activité
+  let qE = sb.from('activite').select('*').order('date', {ascending:false});
+  if (!isAdmin) qE = qE.eq('respo', userDisplayName);
+  const { data: eData } = await qE;
+  entries = eData || [];
+
+  // Signatures
+  let qS = sb.from('signatures').select('*').order('date', {ascending:false});
+  if (!isAdmin) qS = qS.eq('respo', userDisplayName);
+  const { data: sData } = await qS;
+  sigEntries = sData || [];
+
+  render();
+}
+
+// ══════════════════════════════════════════════
+//  SUPABASE — ÉCRITURE
+// ══════════════════════════════════════════════
+async function addEntry() {
+  const respo = isAdmin ? document.getElementById('inp-respo').value : userDisplayName;
+  const row = {
+    date: document.getElementById('inp-date').value || new Date().toISOString().split('T')[0],
+    respo,
+    tc: +document.getElementById('inp-tc').value||0,
+    call: +document.getElementById('inp-call').value||0,
+    email: +document.getElementById('inp-email').value||0,
+    rdv: +document.getElementById('inp-rdv').value||0,
+    lapin: +document.getElementById('inp-lapin').value||0,
+    sign: +document.getElementById('inp-sign').value||0,
+    user_id: currentUser.id,
+  };
+  const { error } = await sb.from('activite').insert(row);
+  if (error) { showToast('Erreur : ' + error.message, true); return; }
+  ['inp-tc','inp-call','inp-email','inp-rdv','inp-lapin','inp-sign'].forEach(id=>{document.getElementById(id).value=''});
+  showToast('Activité enregistrée ✓');
+  await loadData();
+}
+
+async function addSignature() {
+  const ca = +document.getElementById('sig-ca').value||0;
+  if (!ca) { alert('CA obligatoire'); return; }
+  const respo = isAdmin ? document.getElementById('sig-respo').value : userDisplayName;
+  const row = {
+    date: document.getElementById('sig-date').value || new Date().toISOString().split('T')[0],
+    respo,
+    client: document.getElementById('sig-client').value,
+    ca,
+    taux: +document.getElementById('sig-taux').value||0,
+    user_id: currentUser.id,
+  };
+  const { error } = await sb.from('signatures').insert(row);
+  if (error) { showToast('Erreur : ' + error.message, true); return; }
+  ['sig-ca','sig-taux','sig-client'].forEach(id=>{document.getElementById(id).value=''});
+  document.getElementById('sig-preview').textContent='—';
+  showToast('Signature enregistrée ✓');
+  await loadData();
+}
+
+async function deleteEntry(id) {
+  await sb.from('activite').delete().eq('id', id);
+  showToast('Supprimé');
+  await loadData();
+}
+async function deleteSig(id) {
+  await sb.from('signatures').delete().eq('id', id);
+  showToast('Supprimé');
+  await loadData();
+}
+
+async function saveSettings() {
+  const newGoals = {
+    tc: +document.getElementById('goal-tc').value||goals.tc,
+    call: +document.getElementById('goal-call').value||goals.call,
+    email: +document.getElementById('goal-email').value||goals.email,
+    rdv: +document.getElementById('goal-rdv').value||goals.rdv,
+    sign: +document.getElementById('goal-sign').value||goals.sign,
+  };
+  const newCoefs = {
+    rdv: +document.getElementById('coef-rdv').value||coefs.rdv,
+    email: +document.getElementById('coef-email').value||coefs.email,
+  };
+  goals = newGoals; coefs = newCoefs;
+  await sb.from('settings').upsert([
+    {key:'goals', value:goals},
+    {key:'coefs', value:coefs},
+    {key:'salesList', value:salesList},
+  ]);
+  showToast('Paramètres enregistrés ✓');
+  render();
+}
+
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+function score(r){return Math.round((r.rdv*coefs.rdv+r.email*coefs.email)*100)/100}
+function marge(s){return Math.round(s.ca*(s.taux/100))}
+function sumE(rows){return rows.reduce((a,r)=>({tc:a.tc+r.tc,call:a.call+r.call,email:a.email+r.email,rdv:a.rdv+r.rdv,lapin:a.lapin+r.lapin,sign:a.sign+r.sign}),{tc:0,call:0,email:0,rdv:0,lapin:0,sign:0})}
+function pct(a,b){return b?Math.round(a/b*100):0}
+function fmtEur(n){return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)}
+function fmtPct(n){return(+n).toFixed(1)+'%'}
+function salesColor(name){const i=salesList.findIndex(s=>s.name===name);return PALETTE[i%PALETTE.length]||'#185FA5'}
+function getInitials(n){return(n||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
+function gridColor(){return '#f0f0ee'}
+function textColor(){return '#aaa'}
+
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = err ? '#A32D2D' : '#1a1a1a';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function render() {
+  if (!currentSales && salesList.length) currentSales = salesList[0].name;
+  updateToggleLabel();
+  const fE = entries.filter(r => inRange(r.date));
+  const fS = sigEntries.filter(s => inRange(s.date));
+  if (isAdmin) { renderEquipe(fE, fS); renderRevenus(fS); }
+  renderIndiv(currentSales, fE, fS);
+  renderHist(); renderSigHist(); renderIndivTabs();
+}
+
+function renderEquipe(fE, fS) {
+  const ws=sumE(fE),allSc=fE.reduce((a,r)=>a+score(r),0),wkCA=fS.reduce((a,s)=>a+s.ca,0);
+  const gCall=goalFor('call'),gRdv=goalFor('rdv'),gSign=goalFor('sign');
+  document.getElementById('team-cards').innerHTML=`
+    <div class="card"><div class="lbl">Calls</div><div class="val">${ws.call}</div><div class="sub">obj. ${gCall} · ${pct(ws.call,gCall)}%</div></div>
+    <div class="card"><div class="lbl">RDV obtenus</div><div class="val">${ws.rdv}</div><div class="sub">obj. ${gRdv} · ${pct(ws.rdv,gRdv)}%</div></div>
+    <div class="card"><div class="lbl">Signatures</div><div class="val">${ws.sign}</div><div class="sub">obj. ${gSign} · ${pct(ws.sign,gSign)}%</div></div>
+    <div class="card"><div class="lbl">CA signé</div><div class="val">${wkCA?fmtEur(wkCA):'—'}</div><div class="sub">${fS.length} contrat${fS.length>1?'s':''}</div></div>
+    <div class="card"><div class="lbl">Score équipe</div><div class="val">${Math.round(allSc)}</div><div class="sub">pts période</div></div>`;
+  const ranks=salesList.map(s=>{
+    const sE=fE.filter(r=>r.respo===s.name),sS=fS.filter(x=>x.respo===s.name),t=sumE(sE);
+    const sc=sE.reduce((a,r)=>a+score(r),0),ca=sS.reduce((a,x)=>a+x.ca,0);
+    return{name:s.name,sc:Math.round(sc*100)/100,rdv:t.rdv,sign:t.sign,call:t.call,lapin:t.lapin,ca};
+  }).sort((a,b)=>b.sc-a.sc);
+  const maxSc=ranks[0]?.sc||1,medals=['🥇','🥈','🥉'];
+  document.getElementById('leaderboard').innerHTML=ranks.map((r,i)=>{
+    const c=salesColor(r.name),prog=Math.round(r.sc/maxSc*100);
+    return`<div class="lb-row rank-${i+1}"><div class="lb-rank">${medals[i]||i+1}</div><div class="lb-avatar" style="background:${c}22;color:${c}">${getInitials(r.name)}</div><div class="lb-info"><div class="lb-name">${r.name}</div><div class="lb-sub">${r.call} calls · ${r.rdv} RDV · ${r.lapin} lapin${r.lapin>1?'s':''}${r.ca?` · ${fmtEur(r.ca)} CA`:''}</div><div class="prog"><div class="prog-fill" style="width:${prog}%;background:${c}"></div></div></div><div class="lb-right"><div class="lb-score">${r.sc}</div><div class="lb-score-lbl">pts</div></div></div>`;
+  }).join('')||'<div style="color:#888;font-size:13px;padding:.5rem">Aucune donnée sur cette période</div>';
+  if(cFunnel)cFunnel.destroy();
+  cFunnel=new Chart(document.getElementById('chart-funnel').getContext('2d'),{type:'bar',data:{labels:['Tent. Calls','Calls','Emails first','RDV','Signatures'],datasets:[{data:[ws.tc,ws.call,ws.email,ws.rdv,ws.sign],backgroundColor:['#B5D4F4','#378ADD','#9FE1CB','#1D9E75','#185FA5'],borderRadius:4,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor(),font:{size:11}},grid:{color:gridColor()}},y:{ticks:{color:textColor(),font:{size:11}},grid:{display:false}}}}});
+}
+
+function renderRevenus(fS) {
+  const totalCA=fS.reduce((a,s)=>a+s.ca,0),totalMg=fS.reduce((a,s)=>a+marge(s),0),avgTaux=fS.length?Math.round(fS.reduce((a,s)=>a+s.taux,0)/fS.length*10)/10:0;
+  document.getElementById('rev-cards').innerHTML=`<div class="card"><div class="lbl">CA total HT</div><div class="val">${fmtEur(totalCA)}</div><div class="sub">${fS.length} contrat${fS.length>1?'s':''}</div></div><div class="card"><div class="lbl">Marge totale</div><div class="val up">${fmtEur(totalMg)}</div><div class="sub">taux moy. ${avgTaux}%</div></div><div class="card"><div class="lbl">Panier moyen</div><div class="val">${fS.length?fmtEur(Math.round(totalCA/fS.length)):'—'}</div><div class="sub">par contrat</div></div>`;
+  const names=salesList.map(s=>s.name),caPS=names.map(n=>fS.filter(s=>s.respo===n).reduce((a,s)=>a+s.ca,0)),mgPS=names.map(n=>fS.filter(s=>s.respo===n).reduce((a,s)=>a+marge(s),0));
+  if(cRevCompare)cRevCompare.destroy();
+  cRevCompare=new Chart(document.getElementById('chart-rev-compare').getContext('2d'),{type:'bar',data:{labels:names,datasets:[{label:'CA HT',data:caPS,backgroundColor:names.map(n=>salesColor(n)+'bb'),borderRadius:4},{label:'Marge',data:mgPS,backgroundColor:names.map(n=>salesColor(n)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor(),font:{size:12}},grid:{display:false}},y:{ticks:{color:textColor(),font:{size:11},callback:v=>fmtEur(v)},grid:{color:gridColor()}}}}});
+  if(cRevPie)cRevPie.destroy();
+  cRevPie=new Chart(document.getElementById('chart-rev-pie').getContext('2d'),{type:'doughnut',data:{labels:names,datasets:[{data:caPS,backgroundColor:names.map(n=>salesColor(n)),borderWidth:2,borderColor:'transparent'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'60%'}});
+  document.getElementById('rev-legend').innerHTML=names.map((n,i)=>{const c=salesColor(n),share=totalCA?Math.round(caPS[i]/totalCA*100):0;return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:10px;height:10px;border-radius:2px;background:${c};flex-shrink:0"></div><div><div style="font-size:13px;font-weight:500">${n} — ${share}%</div><div style="font-size:11px;color:#888">${fmtEur(caPS[i])} CA · ${fmtEur(mgPS[i])} marge</div></div></div>`}).join('');
+  const sorted=[...fS].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('rev-table').innerHTML=sorted.length?sorted.map(s=>`<tr><td>${s.date}</td><td>${s.respo}</td><td>${s.client||'—'}</td><td>${fmtEur(s.ca)}</td><td>${fmtPct(s.taux)}</td><td style="color:#3B6D11">${fmtEur(marge(s))}</td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:1rem;color:#888">Aucune signature</td></tr>';
+}
+
+function renderIndiv(name, fE, fS) {
+  if (!name) return; currentSales = name;
+  const rows=(fE||entries.filter(r=>inRange(r.date))).filter(r=>r.respo===name).sort((a,b)=>a.date.localeCompare(b.date));
+  const sSigs=(fS||sigEntries.filter(s=>inRange(s.date))).filter(s=>s.respo===name).sort((a,b)=>b.date.localeCompare(a.date));
+  const t=sumE(rows),sc=rows.reduce((a,r)=>a+score(r),0),gCall=goalFor('call'),gRdv=goalFor('rdv');
+  document.getElementById('indiv-cards').innerHTML=`<div class="card"><div class="lbl">Score</div><div class="val">${Math.round(sc*100)/100}</div><div class="sub">pts période</div></div><div class="card"><div class="lbl">Calls</div><div class="val">${t.call}</div><div class="sub">obj. ${gCall} · ${pct(t.call,gCall)}%</div></div><div class="card"><div class="lbl">RDV</div><div class="val">${t.rdv}</div><div class="sub">obj. ${gRdv} · ${pct(t.rdv,gRdv)}%${t.lapin?` · ${t.lapin} 🐰`:''}</div></div><div class="card"><div class="lbl">Conv. →RDV</div><div class="val">${pct(t.rdv,t.call)}%</div><div class="sub">bmark 24%</div></div>`;
+  document.getElementById('indiv-table').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.date}</td><td>${r.tc}</td><td>${r.call}</td><td>${r.email}</td><td>${r.rdv}</td><td>${r.lapin?`<span class="badge b-red">${r.lapin}</span>`:'0'}</td><td>${r.sign?`<span class="badge b-green">${r.sign}</span>`:'0'}</td><td><strong>${score(r)}</strong></td><td>${pct(r.rdv,r.call)}%</td></tr>`).join(''):'<tr><td colspan="9" style="text-align:center;padding:1rem;color:#888">Aucune donnée sur cette période</td></tr>';
+  if(cIndiv)cIndiv.destroy();
+  const c=salesColor(name);
+  cIndiv=new Chart(document.getElementById('chart-indiv').getContext('2d'),{type:'bar',data:{labels:rows.map(r=>r.date),datasets:[{label:'Calls',data:rows.map(r=>r.call),backgroundColor:c+'99',borderRadius:3},{label:'RDV',data:rows.map(r=>r.rdv),backgroundColor:c,borderRadius:3},{label:'Signatures',data:rows.map(r=>r.sign),backgroundColor:'#1D9E75',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor(),font:{size:11}},grid:{display:false}},y:{ticks:{color:textColor(),font:{size:11}},grid:{color:gridColor()}}}}});
+  const sCA=sSigs.reduce((a,s)=>a+s.ca,0),sMg=sSigs.reduce((a,s)=>a+marge(s),0);
+  document.getElementById('indiv-sign-name').textContent=name;
+  document.getElementById('indiv-rev-cards').innerHTML=`<div class="card"><div class="lbl">CA total HT</div><div class="val">${fmtEur(sCA)}</div><div class="sub">${sSigs.length} contrat${sSigs.length>1?'s':''}</div></div><div class="card"><div class="lbl">Marge totale</div><div class="val up">${fmtEur(sMg)}</div><div class="sub">${sSigs.length?fmtPct(sSigs.reduce((a,s)=>a+s.taux,0)/sSigs.length):'—'} moy.</div></div><div class="card"><div class="lbl">Panier moyen</div><div class="val">${sSigs.length?fmtEur(Math.round(sCA/sSigs.length)):'—'}</div><div class="sub">par contrat</div></div>`;
+  document.getElementById('indiv-sign-table').innerHTML=sSigs.length?sSigs.map(s=>`<tr><td>${s.date}</td><td>${s.client||'—'}</td><td>${fmtEur(s.ca)}</td><td>${fmtPct(s.taux)}</td><td style="color:#3B6D11">${fmtEur(marge(s))}</td><td>${isAdmin?`<button class="btn btn-danger" onclick="deleteSig(${s.id})">✕</button>`:'...'}</td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:1rem;color:#888">Aucune signature sur cette période</td></tr>';
+}
+
+function renderIndivTabs() {
+  const el = document.getElementById('indiv-tabs');
+  if (!isAdmin) { el.style.display='none'; return; }
+  el.innerHTML = salesList.map(s =>
+    `<button class="tab${s.name===currentSales?' active':''}" onclick="selectSales('${s.name}')">${s.name}</button>`
+  ).join('');
+}
+function selectSales(name){currentSales=name;renderIndiv(name,entries.filter(r=>inRange(r.date)),sigEntries.filter(s=>inRange(s.date)));renderIndivTabs()}
+
+function renderHist() {
+  const tb=document.getElementById('hist-body');
+  const data = isAdmin ? entries : entries.filter(r=>r.respo===userDisplayName);
+  if(!data.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:1rem;color:#888">Aucune donnée</td></tr>';return}
+  tb.innerHTML=data.map(r=>`<tr><td>${r.date}</td><td>${r.respo}</td><td>${r.tc}</td><td>${r.call}</td><td>${r.email}</td><td>${r.rdv}</td><td>${r.lapin}</td><td>${r.sign}</td><td>${score(r)}</td><td><button class="btn btn-danger" onclick="deleteEntry(${r.id})">✕</button></td></tr>`).join('');
+}
+function renderSigHist() {
+  const tb=document.getElementById('sig-hist-body');
+  const data = isAdmin ? sigEntries : sigEntries.filter(s=>s.respo===userDisplayName);
+  tb.innerHTML=data.length?data.map(s=>`<tr><td>${s.date}</td><td>${s.respo}</td><td>${s.client||'—'}</td><td>${fmtEur(s.ca)}</td><td>${fmtPct(s.taux)}</td><td style="color:#3B6D11">${fmtEur(marge(s))}</td><td><button class="btn btn-danger" onclick="deleteSig(${s.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:1rem;color:#888">Aucune signature</td></tr>';
+}
+function renderSettings() {
+  document.getElementById('sales-settings').innerHTML=salesList.map((s,i)=>`<div class="setting-row"><div class="color-dot" style="background:${PALETTE[i%PALETTE.length]}"></div><input type="text" value="${s.name}" onchange="salesList[${i}].name=this.value"><input type="email" value="${s.email||''}" placeholder="email@..." onchange="salesList[${i}].email=this.value" style="flex:2">${salesList.length>1?`<button class="btn btn-sm" style="color:#A32D2D" onclick="salesList.splice(${i},1);renderSettings()">✕</button>`:''}</div>`).join('');
+}
+function addSalesSetting(){salesList.push({name:'Nouveau',email:''});renderSettings()}
+function renderGoalInputs(){['tc','call','email','rdv','sign'].forEach(k=>{const el=document.getElementById('goal-'+k);if(el)el.value=goals[k]||0})}
+function renderCoefInputs(){document.getElementById('coef-rdv').value=coefs.rdv||1.25;document.getElementById('coef-email').value=coefs.email||0.25}
+function refreshSelects(){
+  ['inp-respo','sig-respo'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML=salesList.map(s=>`<option value="${s.name}"${s.name===cur?' selected':''}>${s.name}</option>`).join('');
+  });
+}
+
+// Live preview marge
+['sig-ca','sig-taux'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('input',()=>{
+    const ca=+document.getElementById('sig-ca').value||0,taux=+document.getElementById('sig-taux').value||0;
+    document.getElementById('sig-preview').textContent=ca&&taux?fmtEur(Math.round(ca*taux/100)):'—';
+  });
+});
+
+// Enter sur login
+document.getElementById('login-password').addEventListener('keydown', e=>{if(e.key==='Enter')doLogin()});
+</script>
+</body>
+</html>
