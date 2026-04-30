@@ -503,8 +503,8 @@ async function loadSettings() {
   // Trouver le nom d'affichage du commercial connecté
   if (!isAdmin) {
     const emailName = currentUser.email.split('@')[0];
-    const match = salesList.find(s => s.email === currentUser.email) || salesList.find(s => s.name.toLowerCase().includes(currentUser.email.split("@")[0].toLowerCase()));
-    userDisplayName = match ? match.name : (salesList.length > 0 ? salesList[0].name : emailName);
+    const match = salesList.find(s => s.email === currentUser.email);
+    userDisplayName = match ? match.name : emailName;
     currentSales = userDisplayName;
     // Forcer le champ respo sur ses propres données
     const sel = document.getElementById('inp-respo');
@@ -522,13 +522,13 @@ async function loadSettings() {
 async function loadData() {
   // Activité
   let qE = sb.from('activite').select('*').order('date', {ascending:false});
-  if (!isAdmin && userDisplayName) qE = qE.eq('respo', userDisplayName);
+
   const { data: eData } = await qE;
   entries = eData || [];
 
   // Signatures
   let qS = sb.from('signatures').select('*').order('date', {ascending:false});
-  if (!isAdmin && userDisplayName) qS = qS.eq('respo', userDisplayName);
+
   const { data: sData } = await qS;
   sigEntries = sData || [];
 
@@ -709,13 +709,13 @@ function selectSales(name){currentSales=name;renderIndiv(name,entries.filter(r=>
 
 function renderHist() {
   const tb=document.getElementById('hist-body');
-  const data = entries;
+  const data = isAdmin ? entries : entries.filter(r=>r.respo===userDisplayName);
   if(!data.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:1rem;color:#888">Aucune donnée</td></tr>';return}
   tb.innerHTML=data.map(r=>`<tr><td>${r.date}</td><td>${r.respo}</td><td>${r.tc}</td><td>${r.call}</td><td>${r.email}</td><td>${r.rdv}</td><td>${r.lapin}</td><td>${r.sign}</td><td>${score(r)}</td><td><button class="btn btn-danger" onclick="deleteEntry(${r.id})">✕</button></td></tr>`).join('');
 }
 function renderSigHist() {
   const tb=document.getElementById('sig-hist-body');
-  const data = sigEntries;
+  const data = isAdmin ? sigEntries : sigEntries.filter(s=>s.respo===userDisplayName);
   tb.innerHTML=data.length?data.map(s=>`<tr><td>${s.date}</td><td>${s.respo}</td><td>${s.client||'—'}</td><td>${fmtEur(s.ca)}</td><td>${fmtPct(s.taux)}</td><td style="color:#3B6D11">${fmtEur(marge(s))}</td><td><button class="btn btn-danger" onclick="deleteSig(${s.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:1rem;color:#888">Aucune signature</td></tr>';
 }
 function renderSettings() {
