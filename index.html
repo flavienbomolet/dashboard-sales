@@ -503,7 +503,7 @@ async function loadSettings() {
   // Trouver le nom d'affichage du commercial connecté
   if (!isAdmin) {
     const emailName = currentUser.email.split('@')[0];
-    const match = salesList.find(s => s.email === currentUser.email);
+    const match = salesList.find(s => s.email === currentUser.email) || salesList.find(s => s.name.toLowerCase().includes(currentUser.email.split("@")[0].toLowerCase()));
     userDisplayName = match ? match.name : emailName;
     currentSales = userDisplayName;
     // Forcer le champ respo sur ses propres données
