@@ -44,6 +44,7 @@
   .tab.active{background:#6E9AFE;color:#fff;border-color:#6E9AFE}
   .tab:hover:not(.active){background:#f5f5f3}
   .view{display:none}.view.active{display:block}
+  .view-inner{width:100%;overflow:hidden;padding:0 30px}
 
   /* Période accordéon */
   .period-accordion{margin-bottom:1rem}
@@ -247,11 +248,13 @@
         <div class="chart-wrap" style="height:220px"><canvas id="chart-ca-time" role="img" aria-label="Évolution CA">Aucune donnée.</canvas></div>
       </div>
 
+  </div><!-- /view-equipe -->
+
     <!-- ── VUE REVENUS supprimée - fusionnée dans équipe ── -->
     <div class="view" id="view-revenus" style="display:none"></div>
 
     <!-- ── VUE INDIVIDUELLE (admin + commercial) ── -->
-    <div class="view" id="view-individuel" style="width:100%;overflow:hidden;padding:0 30px">
+    <div class="view" id="view-individuel" class="view-inner">
       <div class="sales-tabs" id="indiv-tabs"></div>
 
       <div id="sub-activite" style="display:block">
@@ -303,7 +306,7 @@
     </div>
 
     <!-- ── SAISIE ACTIVITÉ (commercial + admin) ── -->
-    <div class="view" id="view-saisie" style="padding:0 30px">
+    <div class="view" id="view-saisie" class="view-inner">
   <div class="section" style="margin-bottom:.75rem">
     <h2>Exporter les données.</h2>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -335,11 +338,19 @@
           <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addEntry()" style="width:100%">Ajouter ↵</button></div>
         </div>
       </div>
-      <div class="section"><h2>Mes saisies récentes.</h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Respo</th><th>T.Call</th><th>Call</th><th>Email</th><th>RDV</th><th>Lapin</th><th>Sign.</th><th>Score</th><th></th></tr></thead><tbody id="hist-body"></tbody></table></div></div>
+
+      <div class="section">
+        <h2 style="font-size:24px;font-weight:900;color:#1a1a1a;font-family:'Avenir Next','Avenir',-apple-system,sans-serif;text-transform:uppercase;letter-spacing:-.3px">Détail journalier.</h2>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Date</th><th>Respo</th><th>T.Call</th><th>Call</th><th>Email</th><th>RDV</th><th>Lapin</th><th>Sign.</th><th>Score</th><th></th></tr></thead>
+          <tbody id="hist-body"></tbody>
+        </table></div>
+      </div>
+
     </div>
 
     <!-- ── SAISIE SIGNATURE (commercial + admin) ── -->
-    <div class="view" id="view-signatures" style="padding:0 30px">
+    <div class="view" id="view-signatures" class="view-inner">
       <div class="section"><h2>Enregistrer un deal.</h2>
         <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
           <div class="fg"><label>Date</label><input type="date" id="sig-date"></div>
@@ -351,7 +362,7 @@
         </div>
         <div style="margin-top:.75rem;padding:.75rem 1rem;background:#f5f5f3;border-radius:8px;font-size:12px;color:#888">Marge calculée : <strong id="sig-preview">—</strong></div>
       </div>
-      <div class="section"><h2>Mes signatures récentes.</h2><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Commercial</th><th>Client</th><th>CA HT</th><th>Taux marque</th><th>Marge €</th><th></th></tr></thead><tbody id="sig-hist-body"></tbody></table></div></div>
+
     </div>
 
     <!-- ── PARAMÈTRES (admin only) ── -->
@@ -380,7 +391,7 @@
     </div>
 
     <!-- ── IMPORT CSV ── -->
-    <div class="view" id="view-import" style="padding:0 30px">
+    <div class="view" id="view-import" class="view-inner">
 
       <div class="section">
         <h2 style="font-size:24px;font-weight:900;color:#1a1a1a;font-family:'Avenir Next','Avenir',-apple-system,sans-serif;text-transform:uppercase;letter-spacing:-.3px">Import CSV.</h2>
@@ -892,9 +903,26 @@ function selectSales(name){currentSales=name;renderIndiv(name,entries.filter(r=>
 
 function renderHist() {
   const tb=document.getElementById('hist-body');
-  const data = isAdmin ? entries : entries.filter(r=>r.respo===userDisplayName);
-  if(!data.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:1rem;color:#888">Aucune donnée</td></tr>';return}
-  tb.innerHTML=data.map(r=>`<tr><td>${r.date}</td><td>${r.respo}</td><td>${r.tc}</td><td>${r.call}</td><td>${r.email}</td><td>${r.rdv}</td><td>${r.lapin}</td><td>${r.sign}</td><td>${score(r)}</td><td><button class="btn btn-danger" onclick="deleteEntry(${r.id})">✕</button></td></tr>`).join('');
+  if(!tb) return;
+  // Trier par date décroissante
+  const data = [...(isAdmin ? entries : entries.filter(r=>r.respo===userDisplayName))]
+    .sort((a,b) => b.date.localeCompare(a.date));
+  if(!data.length){
+    tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:1rem;color:#888">Aucune donnée — importe ou saisis des données</td></tr>';
+    return;
+  }
+  tb.innerHTML=data.map(r=>`<tr>
+    <td>${r.date}</td>
+    <td>${r.respo}</td>
+    <td>${r.tc}</td>
+    <td>${r.call}</td>
+    <td>${r.email}</td>
+    <td>${r.rdv}</td>
+    <td>${r.lapin?`<span class="badge b-red">${r.lapin}</span>`:'0'}</td>
+    <td>${r.sign?`<span class="badge b-green">${r.sign}</span>`:'0'}</td>
+    <td><strong style="color:#6E9AFE">${score(r)}</strong></td>
+    <td><button class="btn btn-danger" title="Supprimer cette ligne" onclick="deleteEntry(${r.id})">✕</button></td>
+  </tr>`).join('');
 }
 function renderSigHist() {
   const tb=document.getElementById('sig-hist-body');
