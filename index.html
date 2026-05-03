@@ -44,7 +44,7 @@
   .tab.active{background:#6E9AFE;color:#fff;border-color:#6E9AFE}
   .tab:hover:not(.active){background:#f5f5f3}
   .view{display:none}.view.active{display:block}
-  .view-inner{width:100%;overflow:hidden;padding:0 30px}
+  .view-inner{padding:0}
 
   /* Période accordéon */
   .period-accordion{margin-bottom:1rem}
@@ -307,6 +307,32 @@
 
     <!-- ── SAISIE ACTIVITÉ (commercial + admin) ── -->
     <div class="view" id="view-saisie" class="view-inner">
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleFileSelect(event)">
+      </div>
+
+      <!-- PRÉVISUALISATION -->
+      <div class="section" id="import-preview-section" style="display:none">
+        <h2 style="font-size:16px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.03em">Aperçu avant import.</h2>
+        <div id="import-stats" style="font-size:13px;color:#888;margin-bottom:.875rem"></div>
+        <div style="overflow-x:auto;margin-bottom:1rem">
+          <table id="import-preview-table">
+            <thead><tr>
+              <th>Date</th><th>Respo</th><th>T. Call</th><th>Call</th><th>Email first</th><th>Prise de RDV</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="import-preview-body"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="import-confirm-btn" onclick="confirmImport()">✓ Confirmer l'import</button>
+          <button class="btn" onclick="cancelImport()" style="color:#FF3D94;border-color:#FF3D94">✕ Annuler</button>
+        </div>
+      </div>
+
+      <!-- RÉSULTAT -->
+      <div id="import-result" style="display:none"></div>
+        </div>
+      </div>
+
   <div class="section" style="margin-bottom:.75rem">
     <h2>Exporter les données.</h2>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -326,16 +352,17 @@
     </div>
   </div>
       <div class="section"><h2>Nouvelle entrée activité.</h2>
-        <div class="form-grid">
-          <div class="fg"><label>Date</label><input type="date" id="inp-date"></div>
-          <div class="fg" id="inp-respo-wrap"><label>Commercial</label><select id="inp-respo"></select></div>
-          <div class="fg"><label>Tent. Calls</label><input type="number" id="inp-tc" min="0" placeholder="0"></div>
-          <div class="fg"><label>Calls obtenus</label><input type="number" id="inp-call" min="0" placeholder="0"></div>
-          <div class="fg"><label>Emails first</label><input type="number" id="inp-email" min="0" placeholder="0"></div>
-          <div class="fg"><label>RDV obtenus</label><input type="number" id="inp-rdv" min="0" placeholder="0"></div>
-          <div class="fg"><label>Lapins</label><input type="number" id="inp-lapin" min="0" placeholder="0"></div>
-          <div class="fg"><label>Signatures (nb)</label><input type="number" id="inp-sign" min="0" placeholder="0"></div>
-          <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addEntry()" style="width:100%">Ajouter ↵</button></div>
+            <div style="display:flex;gap:6px;align-items:flex-end;overflow-x:auto">
+          <div class="fg" style="min-width:110px;flex:2"><label>Date</label><input type="date" id="inp-date"></div>
+          <div class="fg" id="inp-respo-wrap" style="min-width:90px;flex:1.5"><label>Respo</label><select id="inp-respo"></select></div>
+          <div class="fg" style="min-width:52px;flex:1"><label>T.Calls</label><input type="number" id="inp-tc" min="0" placeholder="0"></div>
+          <div class="fg" style="min-width:52px;flex:1"><label>Calls</label><input type="number" id="inp-call" min="0" placeholder="0"></div>
+          <div class="fg" style="min-width:52px;flex:1"><label>Emails</label><input type="number" id="inp-email" min="0" placeholder="0"></div>
+          <div class="fg" style="min-width:52px;flex:1"><label>RDV</label><input type="number" id="inp-rdv" min="0" placeholder="0"></div>
+          <div class="fg" style="min-width:52px;flex:1"><label>Lapins</label><input type="number" id="inp-lapin" min="0" placeholder="0"></div>
+          <div class="fg" style="min-width:52px;flex:1"><label>Sign.</label><input type="number" id="inp-sign" min="0" placeholder="0"></div>
+          <div style="flex-shrink:0;display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addEntry()" style="height:34px;white-space:nowrap">Ajouter ↵</button></div>
+          <div style="flex-shrink:0;display:flex;align-items:flex-end"><button class="btn" onclick="toggleImportPanel()" style="border-color:#2A3D6F;color:#2A3D6F;font-weight:600;white-space:nowrap;height:34px;padding:0 10px">↑ CSV</button></div>
         </div>
       </div>
 
@@ -389,53 +416,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ── IMPORT CSV ── -->
-    <div class="view" id="view-import" class="view-inner">
-
-      <div class="section">
-        <h2 style="font-size:24px;font-weight:900;color:#1a1a1a;font-family:'Avenir Next','Avenir',-apple-system,sans-serif;text-transform:uppercase;letter-spacing:-.3px">Import CSV.</h2>
-        <p style="font-size:13px;color:#888;margin-bottom:1rem">Télécharge le template, remplis-le sur Excel ou Google Sheets, puis importe-le ici.</p>
-
-        <button class="btn btn-primary" onclick="downloadTemplate()" style="margin-bottom:1.5rem;display:inline-flex;align-items:center;gap:6px">
-          ↓ Télécharger le template CSV
-        </button>
-
-        <div id="drop-zone" style="border:2px dashed #1a1a1a;border-radius:12px;padding:2.5rem;text-align:center;cursor:pointer;transition:background .2s;margin-bottom:1rem"
-          onclick="document.getElementById('csv-file-input').click()"
-          ondragover="event.preventDefault();this.style.background='#f0f4ff'"
-          ondragleave="this.style.background=''"
-          ondrop="handleDrop(event)">
-          <div style="font-size:32px;margin-bottom:.5rem">📂</div>
-          <div style="font-size:14px;font-weight:600;color:#1a1a1a">Glisse ton fichier CSV ici</div>
-          <div style="font-size:12px;color:#888;margin-top:4px">ou clique pour sélectionner</div>
-        </div>
-        <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleFileSelect(event)">
-      </div>
-
-      <!-- PRÉVISUALISATION -->
-      <div class="section" id="import-preview-section" style="display:none">
-        <h2 style="font-size:16px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.03em">Aperçu avant import.</h2>
-        <div id="import-stats" style="font-size:13px;color:#888;margin-bottom:.875rem"></div>
-        <div style="overflow-x:auto;margin-bottom:1rem">
-          <table id="import-preview-table">
-            <thead><tr>
-              <th>Date</th><th>Respo</th><th>T. Call</th><th>Call</th><th>Email first</th><th>Prise de RDV</th><th>Statut</th>
-            </tr></thead>
-            <tbody id="import-preview-body"></tbody>
-          </table>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" id="import-confirm-btn" onclick="confirmImport()">✓ Confirmer l'import</button>
-          <button class="btn" onclick="cancelImport()" style="color:#FF3D94;border-color:#FF3D94">✕ Annuler</button>
-        </div>
-      </div>
-
-      <!-- RÉSULTAT -->
-      <div id="import-result" style="display:none"></div>
-
-    </div>
-
   </div><!-- /main -->
 </div><!-- /app -->
 
@@ -526,21 +506,19 @@ sb.auth.getSession().then(({ data: { session } }) => {
 function buildNav() {
   const tabsEl = document.getElementById('main-tabs');
   const adminTabs = [
-    {id:'equipe', label:'Dashboard'},
+    {id:'equipe', label:'Vue équipe'},
     {id:'individuel', label:'Individuel'},
     {id:'spacer', label:''},
     {id:'saisie', label:'Saisir activité +'},
     {id:'signatures', label:'Saisir deal +'},
-    {id:'import', label:'↑ Import CSV'},
     {id:'parametres', label:'⚙'},
   ];
   const commercialTabs = [
-    {id:'equipe', label:'Dashboard'},
+    {id:'equipe', label:'Vue équipe'},
     {id:'individuel', label:'Mon suivi'},
     {id:'spacer', label:''},
     {id:'saisie', label:'Saisir activité +'},
     {id:'signatures', label:'Saisir deal +'},
-    {id:'import', label:'↑ Import CSV'},
   ];
   const tabs = isAdmin ? adminTabs : commercialTabs;
   tabsEl.innerHTML = tabs.map(t => {
@@ -554,16 +532,26 @@ function switchTab(t) {
   document.querySelectorAll('.tab').forEach(b => {
     b.className = 'tab' + (b.textContent.trim() === getTabLabel(t) ? ' active' : '');
   });
-  ['equipe','revenus','individuel','saisie','signatures','parametres','import'].forEach(v => {
+  ['equipe','revenus','individuel','saisie','signatures','parametres'].forEach(v => {
     const el = document.getElementById('view-' + v);
     if (el) el.style.display = v === t ? 'block' : 'none';
   });
   const showPeriod = ANALYSE_TABS.includes(t);
   document.getElementById('period-accordion').style.display = showPeriod ? 'block' : 'none';
   if (!showPeriod) closePeriod();
-  // Ajouter import dans les vues
-  const importEl = document.getElementById('view-import');
-  if(importEl) importEl.style.display = t === 'import' ? 'block' : 'none';
+  
+  // Forcer le masquage des sections admin hors Dashboard
+  if(!isAdmin || t !== 'equipe') {
+    ['section-evol','section-bestday','section-ca-time','section-ai-admin','rev-section','section-ca-overview'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = 'none';
+    });
+  } else if(isAdmin && t === 'equipe') {
+    ['section-evol','section-bestday','section-ca-time','rev-section','section-ca-overview'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = '';
+    });
+  }
   // Si commercial sur "individuel", forcer sa propre vue
   if (!isAdmin && t === 'individuel') {
     const myName = userDisplayName;
@@ -571,7 +559,7 @@ function switchTab(t) {
   }
 }
 function getTabLabel(id) {
-  const m = {equipe:'Dashboard',revenus:'Revenus',individuel:isAdmin?'Individuel':'Mon suivi',saisie:'Saisir activité +',signatures:'Saisir deal +',parametres:'⚙'};
+  const m = {equipe:'Vue équipe',revenus:'Revenus',individuel:isAdmin?'Individuel':'Mon suivi',saisie:'Saisir activité +',signatures:'Saisir deal +',parametres:'⚙'};
   return m[id] || '';
 }
 function switchSubtab(t) {
@@ -1554,6 +1542,14 @@ function resetImport() {
   importRows = [];
 }
 
+
+
+
+
+function toggleImportPanel() {
+  const panel = document.getElementById('import-panel');
+  if(panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
 
 // Enter sur login
 document.getElementById('login-password').addEventListener('keydown', e=>{if(e.key==='Enter')doLogin()});
