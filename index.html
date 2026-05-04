@@ -171,7 +171,7 @@ tr:last-child td{border-bottom:none}
     <div class="view" id="view-equipe">
       <div class="cards" id="kpi-team"></div>
       <div class="section">
-        <h2 class="big">Leaderboard.</h2>
+        <h2 class="big">Score cold call.</h2>
         <div class="lb-list" id="leaderboard"></div>
       </div>
       <div class="section">
@@ -265,6 +265,18 @@ tr:last-child td{border-bottom:none}
           <div style="flex-shrink:0;display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addEntry()" style="white-space:nowrap">Ajouter ↵</button></div>
         </div>
       </div>
+      <div class="section">
+        <h2 class="big">Mes saisies récentes.</h2>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Date</th><th>Respo</th><th>T.Call</th><th>Call</th><th>Email</th><th>RDV</th><th>Lapins</th><th>Sign.</th><th>Score</th><th></th></tr></thead>
+          <tbody id="hist-activite"></tbody>
+        </table></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;font-size:13px">
+          <button class="btn" id="prev-activite" onclick="pageActivite(-1)" style="padding:0 12px">← Précédent</button>
+          <span id="page-info-activite" style="color:#888"></span>
+          <button class="btn" id="next-activite" onclick="pageActivite(1)" style="padding:0 12px">Suivant →</button>
+        </div>
+      </div>
     </div>
 
     <!-- SAISIR DEAL -->
@@ -280,6 +292,18 @@ tr:last-child td{border-bottom:none}
           <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="addSig()" style="width:100%">Enregistrer ↵</button></div>
         </div>
         <div style="margin-top:.75rem;padding:.75rem 1rem;background:#f5f5f3;border-radius:8px;font-size:12px;color:#888">Marge calculée : <strong id="sig-preview">—</strong></div>
+      </div>
+      <div class="section">
+        <h2 class="big">Mes deals récents.</h2>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Date</th><th>Commercial</th><th>Client</th><th>CA HT</th><th>Taux</th><th>Marge €</th><th></th></tr></thead>
+          <tbody id="hist-deals"></tbody>
+        </table></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;font-size:13px">
+          <button class="btn" id="prev-deals" onclick="pageDeals(-1)" style="padding:0 12px">← Précédent</button>
+          <span id="page-info-deals" style="color:#888"></span>
+          <button class="btn" id="next-deals" onclick="pageDeals(1)" style="padding:0 12px">Suivant →</button>
+        </div>
       </div>
     </div>
 
@@ -518,6 +542,8 @@ function render(){
   const fS=sigEntries.filter(s=>inRange(s.date));
   renderEquipe(fE,fS);
   renderSuivi(currentSales,fE,fS);
+  renderHistActivite();
+  renderHistDeals();
 }
 
 function renderEquipe(fE,fS){
@@ -697,6 +723,71 @@ async function confirmImport(){
 }
 function cancelImport(){importRows=[];document.getElementById('import-preview').style.display='none';document.getElementById('csv-input').value='';}
 function resetImport(){document.getElementById('import-result').style.display='none';document.getElementById('import-preview').style.display='none';importRows=[];}
+
+const PAGE_SIZE = 10;
+let pageActiviteIdx = 0;
+let pageDealsIdx = 0;
+
+function renderHistActivite(){
+  const tb=document.getElementById('hist-activite');
+  if(!tb)return;
+  const data=[...(isAdmin?entries:entries.filter(r=>r.respo===userDisplayName))].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!data.length){
+    tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:1rem;color:#888">Aucune saisie</td></tr>';
+    document.getElementById('page-info-activite').textContent='';
+    document.getElementById('prev-activite').disabled=true;
+    document.getElementById('next-activite').disabled=true;
+    return;
+  }
+  const totalPages=Math.ceil(data.length/PAGE_SIZE);
+  if(pageActiviteIdx>=totalPages)pageActiviteIdx=totalPages-1;
+  const page=data.slice(pageActiviteIdx*PAGE_SIZE,(pageActiviteIdx+1)*PAGE_SIZE);
+  tb.innerHTML=page.map(r=>`<tr>
+    <td>${r.date}</td><td>${r.respo}</td><td>${r.tc}</td><td>${r.call}</td><td>${r.email}</td><td>${r.rdv}</td>
+    <td>${r.lapin?`<span class="badge b-red">${r.lapin}</span>`:'0'}</td>
+    <td>${r.sign?`<span class="badge b-green">${r.sign}</span>`:'0'}</td>
+    <td style="color:#6E9AFE;font-weight:600">${sc(r)}</td>
+    <td><button class="btn btn-danger" onclick="deleteEntry(${r.id})">✕</button></td>
+  </tr>`).join('');
+  document.getElementById('page-info-activite').textContent=`Page ${pageActiviteIdx+1} / ${totalPages} · ${data.length} ligne${data.length>1?'s':''}`;
+  document.getElementById('prev-activite').disabled=pageActiviteIdx===0;
+  document.getElementById('next-activite').disabled=pageActiviteIdx>=totalPages-1;
+}
+
+function pageActivite(dir){
+  pageActiviteIdx+=dir;
+  renderHistActivite();
+}
+
+function renderHistDeals(){
+  const tb=document.getElementById('hist-deals');
+  if(!tb)return;
+  const data=[...(isAdmin?sigEntries:sigEntries.filter(s=>s.respo===userDisplayName))].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!data.length){
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:1rem;color:#888">Aucun deal</td></tr>';
+    document.getElementById('page-info-deals').textContent='';
+    document.getElementById('prev-deals').disabled=true;
+    document.getElementById('next-deals').disabled=true;
+    return;
+  }
+  const totalPages=Math.ceil(data.length/PAGE_SIZE);
+  if(pageDealsIdx>=totalPages)pageDealsIdx=totalPages-1;
+  const page=data.slice(pageDealsIdx*PAGE_SIZE,(pageDealsIdx+1)*PAGE_SIZE);
+  tb.innerHTML=page.map(s=>`<tr>
+    <td>${s.date}</td><td>${s.respo}</td><td>${s.client||'—'}</td>
+    <td>${fmtEur(s.ca)}</td><td>${fmtPct(s.taux)}</td>
+    <td style="color:#FF3D94;font-weight:600">${fmtEur(mg(s))}</td>
+    <td><button class="btn btn-danger" onclick="deleteSig(${s.id})">✕</button></td>
+  </tr>`).join('');
+  document.getElementById('page-info-deals').textContent=`Page ${pageDealsIdx+1} / ${totalPages} · ${data.length} deal${data.length>1?'s':''}`;
+  document.getElementById('prev-deals').disabled=pageDealsIdx===0;
+  document.getElementById('next-deals').disabled=pageDealsIdx>=totalPages-1;
+}
+
+function pageDeals(dir){
+  pageDealsIdx+=dir;
+  renderHistDeals();
+}
 
 document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 const rem=localStorage.getItem('remembered_email');
